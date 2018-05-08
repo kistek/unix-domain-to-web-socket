@@ -1,0 +1,20 @@
+{
+  "name": "unix-domain-to-web-socket",
+  "version": "0.0.1",
+  "description": "unix-domain-to-web-socket",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "ava"
+  },
+  "author": "Chris Hiestand <chris@kistek.consulting>",
+  "license": "MIT",
+  "devDependencies": {
+    "ava": "^0.25.0",
+    "eslint": "^4.19.1",
+    "eslint-config-eslint": "^4.0.0"
+  },
+  "dependencies": {
+    "express": "^4.16.3",
+    "socket.io": "^2.1.0"
+  }
+}
