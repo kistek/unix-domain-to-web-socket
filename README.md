@@ -11,7 +11,7 @@ node src/index.js /path/to/progname.sock "my-socket-io-event-name" 1080 utf8
 
 Docker
 ```bash
-docker run 
+docker run kistek/unix-domain-to-web-socket /path/to/progname.sock "my-socket-io-event-name" 1080 utf8
 ```
 
 ## TODO / Issues
