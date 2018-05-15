@@ -121,6 +121,7 @@ function main(udsPath, eventName, port, encoding) {
         console.log(`listening on *:${port}`);
 
         ipcSocketReader.on("data", data => {
+            console.log(data);
             io.emit(eventName, data);
         });
     });
