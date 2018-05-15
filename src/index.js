@@ -65,6 +65,18 @@ function setupUnixSocketLogM(socket, socketPath) {
 }
 
 /**
+ * [gracefulShutdown description]
+ * @method gracefulShutdown
+ * @param  {[type]}         ipcSocketReader [description]
+ * @param  {[type]}         io              [description]
+ * @returns {void}
+ */
+function gracefulShutdown(ipcSocketReader, io) {
+    ipcSocketReader.end();
+    io.close();
+}
+
+/**
  *
  * @method main
  * @param  {string} udsPath   path to unix daemon socket
@@ -75,13 +87,24 @@ function setupUnixSocketLogM(socket, socketPath) {
  */
 function main(udsPath, eventName, port, encoding) {
 
-    const udsClient = net.createConnection(udsPath);
+    const ipcSocketReader = net.createConnection(udsPath);
 
-    setupUnixSocketLogM(udsClient, udsPath);
+    setupUnixSocketLogM(ipcSocketReader, udsPath);
 
     const app = express();
     const server = new http.Server(app);
     const io = socketIo(server);
+
+    process.on("SIGINT", () => {
+        console.log("Received SIGINT. Gracefully shutting down...");
+        gracefulShutdown(ipcSocketReader, io);
+    });
+
+    process.on("SIGTERM", () => {
+        console.log("Received SIGTERM. Gracefully shutting down...");
+        gracefulShutdown(ipcSocketReader, io);
+    });
+
 
     setupSocketIoLogM(io);
 
@@ -90,14 +113,14 @@ function main(udsPath, eventName, port, encoding) {
     });
 
     if (encoding) {
-        udsClient.setEncoding(encoding);
+        ipcSocketReader.setEncoding(encoding);
     }
 
     server.listen(port, () => {
 
         console.log(`listening on *:${port}`);
 
-        udsClient.on("data", data => {
+        ipcSocketReader.on("data", data => {
             io.emit(eventName, data);
         });
     });
