@@ -69,11 +69,24 @@ function setupUnixSocketLogM(socket, socketPath) {
  * @method gracefulShutdown
  * @param  {[type]}         ipcSocketReader [description]
  * @param  {[type]}         io              [description]
+ * @param  {[type]}         httpServer      [description]
  * @returns {void}
  */
-function gracefulShutdown(ipcSocketReader, io) {
+function gracefulShutdown(ipcSocketReader, io, httpServer) {
+
     ipcSocketReader.end();
-    io.close();
+    ipcSocketReader.unref();
+    io.close(() => {
+        console.log("io closed");
+    });
+    httpServer.close(() => {
+        console.log("http server closed");
+    });
+
+    // This function somehow does not actually shutdown the servers in many seconds. Unsure why. So let's make sure this closes quicker if we don't have time to investigate.
+    setTimeout(() => {
+        process.exit(0); // eslint-disable-line no-process-exit
+    }, 1000);
 }
 
 /**
@@ -85,26 +98,29 @@ function gracefulShutdown(ipcSocketReader, io) {
  * @param  {string|null} encoding stream encoding
  * @returns {void}
  */
-function main(udsPath, eventName, port, encoding) {
+function main(udsPath, eventName, port, encoding = "utf8") {
 
     const ipcSocketReader = net.createConnection(udsPath);
 
     setupUnixSocketLogM(ipcSocketReader, udsPath);
 
     const app = express();
-    const server = new http.Server(app);
-    const io = socketIo(server);
+    const httpServer = new http.Server(app);
+    const io = socketIo(httpServer, {
+        serveClient: false,
+        pingInterval: 5000,
+        pingTimeout: 3000
+    });
 
     process.on("SIGINT", () => {
         console.log("Received SIGINT. Gracefully shutting down...");
-        gracefulShutdown(ipcSocketReader, io);
+        gracefulShutdown(ipcSocketReader, io, httpServer);
     });
 
     process.on("SIGTERM", () => {
         console.log("Received SIGTERM. Gracefully shutting down...");
-        gracefulShutdown(ipcSocketReader, io);
+        gracefulShutdown(ipcSocketReader, io, httpServer);
     });
-
 
     setupSocketIoLogM(io);
 
@@ -116,7 +132,7 @@ function main(udsPath, eventName, port, encoding) {
         ipcSocketReader.setEncoding(encoding);
     }
 
-    server.listen(port, () => {
+    httpServer.listen(port, () => {
 
         console.log(`listening on *:${port}`);
 
@@ -137,7 +153,7 @@ function configAndRun() {
     const udsPathInput = process.argv[2];
     const eventName = process.argv[3];
     const port = parseInt(process.argv[4], 10) || 5294;
-    const encoding = process.argv[5] || null;
+    const encoding = process.argv[5];
 
     if (!udsPathInput || udsPathInput === "--help" || !eventName) {
 
